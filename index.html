@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>触屏中文版 Stroop 测试</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    html, body {
+      margin:0; padding:0;
+      width:100%; height:100%;
+      font-family:"Segoe UI",sans-serif;
+      background:#f0f0f0;
+      user-select:none; touch-action:manipulation;
+    }
+    .page {
+      display:none;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      width:100%; height:100%;
+      padding:1rem;
+      box-sizing:border-box;
+      position:relative;
+    }
+    .active { display:flex; }
+
+    h1,h2,p { margin:0.5em; text-align:center; }
+    input, button { box-sizing:border-box; }
+    input {
+      width:100%; max-width:300px;
+      padding:0.5em; margin:0.5em 0;
+      font-size:1.2em;
+    }
+    button {
+      width:100%; max-width:300px;
+      padding:0.8em; margin:0.5em 0;
+      font-size:1.2em;
+      border:none; border-radius:5px;
+      background:#468FAF; color:#fff;
+    }
+
+    /* Stimulus & fixation (identical for warmup & test) */
+    .stimContainer {
+      display:flex; align-items:center; justify-content:center;
+      width:100%;
+    }
+    .fixation { font-size:4em; margin-right:1rem; }
+    .stimulus { font-size:3em; }
+
+    /* Warmup: title at top, container centered exactly like test */
+    #warmup h2 {
+      position:absolute;
+      top:1rem;
+      left:50%; transform:translateX(-50%);
+      margin:0;
+    }
+    #warmup .stimContainer {
+      position:absolute;
+      top:50%; left:50%;
+      transform:translate(-50%, -50%);
+    }
+
+    /* Buttons (identical) */
+    #buttons, #warmButtons {
+      position:absolute;
+      bottom:2rem; left:50%;
+      transform:translateX(-50%);
+      display:flex;
+      width:100%; max-width:400px;
+      justify-content:space-around;
+    }
+    .btn {
+      flex:1; margin:0 0.5em;
+      padding:1em; font-size:1.2em;
+      background:#ddd; color:#333;
+      border-radius:5px; text-align:center;
+    }
+    .btn:active { background:#bbb; }
+
+    /* Warmup feedback & next (initially hidden) */
+    #warmFeedback, #warmNext {
+      position:absolute; left:50%; transform:translateX(-50%);
+      z-index:10;
+    }
+    #warmFeedback {
+      bottom:6rem; display:none;
+      background:rgba(0,0,0,0.6); color:#fff;
+      padding:0.5em 1em; border-radius:5px;
+      text-align:center;
+    }
+    #warmNext {
+      bottom:8rem; display:none;
+      background:#4CAF50; color:#fff;
+    }
+
+    /* End page */
+    #endMsg { font-size:1.2em; margin-bottom:1rem; text-align:center; }
+    #resultContainer button { background:#4CAF50; }
+  </style>
+</head>
+<body>
+  <!-- 第1页：记录班级和学号 -->
+  <div id="page1" class="page active">
+    <h1>欢迎参加 Stroop 测试</h1>
+    <input type="text" id="classInput" placeholder="请输入班级">
+    <input type="text" id="idInput"    placeholder="请输入学号">
+    <button id="toInstructions">下一步</button>
+  </div>
+
+  <!-- 第2页：说明 -->
+  <div id="instructions" class="page">
+    <h2>准备好了吗？</h2>
+    <p>让我们开始吧！</p>
+    <p>忽视词的内容，根据词的颜色按键：</p>
+    <p>红色词 → 左键   绿色词 → 下键   蓝色词 → 右键</p>
+    <button id="startButton">开始热身</button>
+  </div>
+
+  <!-- 第3页：热身 -->
+  <div id="warmup" class="page">
+    <h2>热身</h2>
+    <div class="stimContainer">
+      <div id="warmFix"  class="fixation">+</div>
+      <div id="warmStim" class="stimulus"></div>
+    </div>
+    <div id="warmFeedback"></div>
+    <button id="warmNext">正确！开始正式实验</button>
+    <div id="warmButtons">
+      <div id="warm-left"  class="btn">←</div>
+      <div id="warm-down"  class="btn">↓</div>
+      <div id="warm-right" class="btn">→</div>
+    </div>
+  </div>
+
+  <!-- 第4页：正式测试 -->
+  <div id="test" class="page">
+    <div class="stimContainer">
+      <div id="fix"      class="fixation">+</div>
+      <div id="stimulus" class="stimulus"></div>
+    </div>
+    <div id="buttons">
+      <div id="btn-left"  class="btn">←</div>
+      <div id="btn-down"  class="btn">↓</div>
+      <div id="btn-right" class="btn">→</div>
+    </div>
+  </div>
+
+  <!-- 第5页：结束与导出 -->
+  <div id="finish" class="page">
+    <div id="endMsg">测试完成，谢谢参与！</div>
+    <div id="resultContainer">
+      <button onclick="exportResults()">导出结果请保存至本地文件 并返回提交</button>
+    </div>
+  </div>
+
+  <script>
+    let studentClass='', studentId='', records=[], currentTrial=0, stimOnset=0, trialActive=false;
+
+    const trials=[
+      {text:'蓝色',color:'blue',corrAns:'right',congruent:1},
+      {text:'绿色',color:'green',corrAns:'down',congruent:1},
+      {text:'蓝色',color:'red',corrAns:'left',congruent:0},
+      {text:'红色',color:'red',corrAns:'left',congruent:1},
+      {text:'绿色',color:'blue',corrAns:'right',congruent:0},
+      {text:'红色',color:'green',corrAns:'down',congruent:0},
+      {text:'红色',color:'red',corrAns:'left',congruent:1},
+      {text:'绿色',color:'green',corrAns:'down',congruent:1},
+      {text:'绿色',color:'blue',corrAns:'right',congruent:0},
+      {text:'红色',color:'green',corrAns:'down',congruent:0},
+      {text:'蓝色',color:'blue',corrAns:'right',congruent:1},
+      {text:'蓝色',color:'red',corrAns:'left',congruent:0},
+      {text:'红色',color:'green',corrAns:'down',congruent:0},
+      {text:'绿色',color:'blue',corrAns:'right',congruent:0},
+      {text:'红色',color:'red',corrAns:'left',congruent:1},
+      {text:'蓝色',color:'red',corrAns:'left',congruent:0},
+      {text:'蓝色',color:'blue',corrAns:'right',congruent:1},
+      {text:'绿色',color:'green',corrAns:'down',congruent:1},
+      {text:'红色',color:'red',corrAns:'left',congruent:1},
+      {text:'蓝色',color:'blue',corrAns:'right',congruent:1},
+      {text:'绿色',color:'green',corrAns:'down',congruent:1},
+      {text:'绿色',color:'blue',corrAns:'right',congruent:0},
+      {text:'蓝色',color:'red',corrAns:'left',congruent:0},
+      {text:'红色',color:'green',corrAns:'down',congruent:0},
+      {text:'红色',color:'green',corrAns:'down',congruent:0},
+      {text:'红色',color:'red',corrAns:'left',congruent:1},
+      {text:'绿色',color:'green',corrAns:'down',congruent:1},
+      {text:'绿色',color:'blue',corrAns:'right',congruent:0},
+      {text:'蓝色',color:'blue',corrAns:'right',congruent:1},
+      {text:'蓝色',color:'red',corrAns:'left',congruent:0}
+    ];
+
+    const warmups=[
+      {text:'红色',color:'green',corrAns:'down'},
+      {text:'蓝色',color:'blue',corrAns:'right'},
+      {text:'绿色',color:'red',corrAns:'left'}
+    ];
+    let warmIndex=0, warmActive=false;
+
+    function showPage(id){
+      document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    document.getElementById('toInstructions').onclick=()=>{
+      const c=document.getElementById('classInput').value.trim(),
+            i=document.getElementById('idInput').value.trim();
+      if(!c||!i){ alert('请填写班级和学号'); return; }
+      studentClass=c; studentId=i;
+      showPage('instructions');
+    };
+
+    document.getElementById('startButton').onclick=()=>{
+      warmIndex=0; showPage('warmup'); startWarmup();
+    };
+
+    function startWarmup(){
+      const fb=document.getElementById('warmFeedback'),
+            nxt=document.getElementById('warmNext'),
+            fix=document.getElementById('warmFix'),
+            stim=document.getElementById('warmStim');
+      fb.style.display='none'; nxt.style.display='none';
+      fix.style.display='block'; stim.style.display='none';
+      setTimeout(()=>{
+        fix.style.display='none';
+        const w=warmups[warmIndex];
+        stim.textContent=w.text; stim.style.color=w.color; stim.style.display='block';
+        warmActive=true;
+      },500);
+    }
+
+    function handleWarm(ans){
+      if(!warmActive) return;
+      warmActive=false;
+      const w=document.getElementById('warmup');
+      const entry=warmups[warmIndex],
+            fb=document.getElementById('warmFeedback'),
+            nxt=document.getElementById('warmNext');
+      if(ans===entry.corrAns){
+        fb.textContent='正确！'; fb.style.display='block';
+        if(warmIndex<warmups.length-1){
+          setTimeout(()=>{ warmIndex++; startWarmup(); },800);
+        } else {
+          nxt.style.display='block';
+        }
+      } else {
+        fb.textContent='错误，请再试一次'; fb.style.display='block';
+        warmActive=true;
+      }
+    }
+    ['warm-left','warm-down','warm-right'].forEach(id=>{
+      document.getElementById(id).onclick=()=>handleWarm(id.split('-')[1]);
+    });
+
+    document.getElementById('warmNext').onclick=()=>{
+      showPage('test'); runTrial();
+    };
+
+    ['btn-left','btn-down','btn-right'].forEach(id=>{
+      document.getElementById(id).onclick=()=>handleResponse(id.split('-')[1]);
+    });
+    document.onkeydown=e=>{
+      if(!trialActive) return;
+      if(e.key==='ArrowLeft')  handleResponse('left');
+      if(e.key==='ArrowDown')  handleResponse('down');
+      if(e.key==='ArrowRight') handleResponse('right');
+    };
+
+    function runTrial(){
+      const fix=document.getElementById('fix'), stim=document.getElementById('stimulus');
+      trialActive=false; fix.style.display='block'; stim.style.display='none';
+      setTimeout(()=>{
+        fix.style.display='none';
+        const t=trials[currentTrial];
+        stim.textContent=t.text; stim.style.color=t.color; stim.style.display='block';
+        stimOnset=performance.now(); trialActive=true;
+      },500);
+    }
+
+    function handleResponse(ans){
+      if(!trialActive) return;
+      trialActive=false;
+      const rt=Math.round(performance.now()-stimOnset), t=trials[currentTrial], correct=ans===t.corrAns;
+      records.push({trial:currentTrial+1,original:t.text,answer:ans,correctAns:t.corrAns,accurate:correct?1:0,rt});
+      if(currentTrial<trials.length-1){ currentTrial++; runTrial(); } else { showPage('finish'); }
+    }
+
+    function exportResults(){
+      const data=[
+        ['学生ID',studentId], ['班级',studentClass], [],
+        ['试次','原始数字','输入答案','正确答案','准确','反应时间(ms)'],
+        ...records.map(r=>[r.trial,r.original,r.answer,r.correctAns,r.accurate,r.rt])
+      ];
+      const ws=XLSX.utils.aoa_to_sheet(data), wb=XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb,ws,'Results');
+      const wbout=XLSX.write(wb,{bookType:'xlsx',type:'binary'});
+      function s2ab(s){const buf=new ArrayBuffer(s.length),view=new Uint8Array(buf);for(let i=0;i<s.length;i++)view[i]=s.charCodeAt(i)&0xFF;return buf;}
+      const blob=new Blob([s2ab(wbout)],{type:'application/octet-stream'}), url=URL.createObjectURL(blob), a=document.createElement('a');
+      a.href=url; a.download='result.xlsx'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(()=>window.location.href='https://c.wss.pet/s/gsmvaegj3s4',2000);
+    }
+  </script>
+</body>
+</html>
