@@ -149,9 +149,15 @@
 
   <!-- 第5页：结束与导出 -->
   <div id="finish" class="page">
-    <div id="endMsg">测试完成，谢谢参与！</div>
+    <div id="endMsg">测试完成，请上传结果！</div>
     <div id="resultContainer">
-      <button onclick="exportResults()">导出结果请保存至本地文件 并返回提交</button>
+      <button onclick="exportResults()">📥 导出.xlsx 并提交</button>
+      <p style="font-size:0.9em; color:#666;margin:0.5em 0;">如下载失败，请复制下方内容：</p>
+      <button onclick="showCSV()">📋 显示CSV文本以复制</button>
+    </div>
+    <div id="csvContainer" style="display:none; margin-top:1em; text-align:left;">
+      <h3>请长按复制以下内容：</h3>
+      <pre id="csvContent" style="white-space:pre-wrap; background:#fafafa; border:1px solid #ccc; padding:0.5em; border-radius:4px;"></pre>
     </div>
   </div>
 
@@ -300,6 +306,28 @@
       a.href=url; a.download='result.xlsx'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
       setTimeout(()=>window.location.href='https://c.wss.pet/s/gt832it64mc',2000);
     }
-  </script>
+
+    function showCSV() {
+  // 直接用最外面已经赋好的 studentId / studentClass
+    const sid = studentId;
+    const sclass = studentClass;
+
+    const rows = [
+      ['学生ID', sid],
+      ['班级',  sclass],
+      [],
+    ['试次','原始数字','输入答案','正确答案','准确','反应时间(ms)'],
+    ...records.map(r => [r.trial, r.original, r.answer, r.correctAns, r.accurate, r.rt])
+   ];
+
+  const csv = rows.map(r => r.join(',')).join('\n');
+  document.getElementById('csvContent').innerText = csv;
+  document.getElementById('csvContainer').style.display = 'block';
+
+  setTimeout(() => {
+    window.location.href = 'https://www.wjx.cn/vm/mBZc3BR.aspx';
+  }, 20000);
+}
+</script>
 </body>
 </html>
