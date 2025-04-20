@@ -98,7 +98,29 @@
     /* End page */
     #endMsg { font-size:1.2em; margin-bottom:1rem; text-align:center; }
     #resultContainer button { background:#4CAF50; }
+
   </style>
+  
+  <style>
+.copy-status {
+  position: fixed;
+  bottom: 5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  padding: 0.4em 1em;
+  border-radius: 6px;
+  font-size: 1em;
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 9999;
+}
+.copy-status.show {
+  opacity: 1;
+}
+</style>
+
 </head>
 <body>
   <!-- 第1页：记录班级和学号 -->
@@ -155,31 +177,14 @@
       <p style="font-size:0.9em; color:#666;margin:0.5em 0;">如下载失败，请复制下方内容：</p>
       <button onclick="showCSV()">📋 显示CSV文本以复制</button>
     </div>
-    <div id="csvContainer" style="display:none; margin-top:1em; text-align:left;">
+    <div id="csvContainer" style="display:none; margin-top:1em; text-align:left; position:relative;">
       <h3>请长按复制以下内容：</h3>
       <pre id="csvContent" style="white-space:pre-wrap; background:#fafafa; border:1px solid #ccc; padding:0.5em; border-radius:4px;"></pre>
       <!-- 新增一键复制按钮和提示 -->
      <button id="copyCsvBtn">一键复制</button>
-     <span id="copyStatus" class="copy-status">已复制！</span>
+     <!-- 放在 HTML 最底部，确保显示 -->
+    <span id="copyStatus" class="copy-status">✅ 已复制！</span>
 
-<style>
-.copy-status {
-  position: absolute;
-  top: -1.5em;
-  right: 0;
-  background: rgba(0,0,0,0.7);
-  color: #fff;
-  padding: 0.2em 0.5em;
-  border-radius: 4px;
-  font-size: 0.9em;
-  opacity: 0;
-  transition: opacity 0.3s;
-  pointer-events: none;
-}
-.copy-status.show {
-  opacity: 1;
-}
-</style>
     </div>
   </div>
 
@@ -331,33 +336,40 @@
 
     function showCSV() {
   // 直接用最外面已经赋好的 studentId / studentClass
-    const sid = studentId;
-    const sclass = studentClass;
+  const sid = studentId;
+  const sclass = studentClass;
 
-    const rows = [
-      ['学生ID', sid],
-      ['班级',  sclass],
-      [],
+  const rows = [
+    ['学生ID', sid],
+    ['班级',  sclass],
+    [],
     ['试次','原始数字','输入答案','正确答案','准确','反应时间(ms)'],
     ...records.map(r => [r.trial, r.original, r.answer, r.correctAns, r.accurate, r.rt])
-   ];
+  ];
 
   const csv = rows.map(r => r.join(',')).join('\n');
   document.getElementById('csvContent').innerText = csv;
   document.getElementById('csvContainer').style.display = 'block';
+
+  // 👇 修改处：一键复制按钮的事件
   document.getElementById('copyCsvBtn').onclick = () => {
-   navigator.clipboard.writeText(csv)
-     .then(() => {
-     const status = document.getElementById('copyStatus');
-     status.classList.add('show');
-     setTimeout(() => status.classList.remove('show'), 2000);
-     })
-     .catch(err => alert('复制失败：' + err));
- };
+    navigator.clipboard.writeText(csv)
+      .then(() => {
+        const status = document.getElementById('copyStatus');
+        status.classList.add('show'); // 添加 class 显示气泡
+        setTimeout(() => {
+          status.classList.remove('show'); // 2 秒后自动隐藏
+        }, 2000);
+      })
+      .catch(err => alert('复制失败：' + err));
+  };
+
+  // 20 秒后跳转
   setTimeout(() => {
     window.location.href = 'https://www.wjx.cn/vm/mBZc3BR.aspx';
   }, 20000);
 }
+
 </script>
 </body>
 </html>
