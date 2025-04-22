@@ -173,17 +173,16 @@
   <div id="finish" class="page">
     <div id="endMsg">测试完成，请上传结果！</div>
     <div id="resultContainer">
-      <button onclick="exportResults()">📥 导出.xlsx 请保存并返回页面提交</button>
-      <p style="font-size:0.9em; color:#666;margin:0.5em 0;">如下载失败，请复制下方内容：</p>
+      <p style="font-size:0.9em; color:#666;margin:0.5em 0;">请复制下方内容：</p>
       <button onclick="showCSV()">📋 显示CSV文本以复制</button>
     </div>
     <div id="csvContainer" style="display:none; margin-top:1em; text-align:left; position:relative;">
-      <h3>请长按复制以下内容：</h3>
+      <h3>请复制以下内容：</h3>
       <pre id="csvContent" style="white-space:pre-wrap; background:#fafafa; border:1px solid #ccc; padding:0.5em; border-radius:4px;"></pre>
       <!-- 新增一键复制按钮和提示 -->
      <button id="copyCsvBtn">一键复制</button>
      <!-- 放在 HTML 最底部，确保显示 -->
-    <span id="copyStatus" class="copy-status">✅ 已复制！</span>
+    <span id="copyStatus" class="copy-status">✅ 已复制！页面将于10s跳转</span>
 
     </div>
   </div>
@@ -319,21 +318,6 @@
       if(currentTrial<trials.length-1){ currentTrial++; runTrial(); } else { showPage('finish'); }
     }
 
-    function exportResults(){
-      const data=[
-        ['学生ID',studentId], ['班级',studentClass], [],
-        ['试次','原始数字','输入答案','正确答案','准确','反应时间(ms)'],
-        ...records.map(r=>[r.trial,r.original,r.answer,r.correctAns,r.accurate,r.rt])
-      ];
-      const ws=XLSX.utils.aoa_to_sheet(data), wb=XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb,ws,'Results');
-      const wbout=XLSX.write(wb,{bookType:'xlsx',type:'binary'});
-      function s2ab(s){const buf=new ArrayBuffer(s.length),view=new Uint8Array(buf);for(let i=0;i<s.length;i++)view[i]=s.charCodeAt(i)&0xFF;return buf;}
-      const blob=new Blob([s2ab(wbout)],{type:'application/octet-stream'}), url=URL.createObjectURL(blob), a=document.createElement('a');
-      a.href=url; a.download='result.xlsx'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(()=>window.location.href='https://c.wss.pet/s/gt832it64mc',2000);
-    }
-
     function showCSV() {
   // 直接用最外面已经赋好的 studentId / studentClass
   const sid = studentId;
@@ -364,10 +348,10 @@
       .catch(err => alert('复制失败：' + err));
   };
 
-  // 20 秒后跳转
+  // 10 秒后跳转
   setTimeout(() => {
     window.location.href = 'https://www.wjx.cn/vm/mBZc3BR.aspx';
-  }, 20000);
+  }, 10000);
 }
 
 </script>
